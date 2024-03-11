@@ -1,0 +1,86 @@
+version: '3'
+services:
+  haproxy:
+    image: haproxy:alpine3.19
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
+    ports:
+      - "9999:9999"
+    depends_on:
+      web1:
+        condition: service_healthy
+      web2:
+        condition: service_healthy
+    networks:
+      logic_infra:
+        ipv4_address: 172.20.0.5
+    healthcheck:
+      test: ["CMD", "nc", "-z", "172.20.0.6", "4000"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: "no"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 100M
+
+  web1:
+    image: l0gicb0mb01/rinha_api:2.0
+    depends_on:
+      - postgres
+    networks:
+      logic_infra:
+        ipv4_address: 172.20.0.6
+    healthcheck:
+      test: ["CMD", "true"]
+      interval: 10s
+      timeout: 5s
+    restart: "no"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.6'
+          memory: 100M
+
+  web2:
+    image: l0gicb0mb01/rinha_api:2.0
+    depends_on:
+      - postgres
+    networks:
+      logic_infra:
+        ipv4_address: 172.20.0.7
+    healthcheck:
+      test: ["CMD", "true"]
+      interval: 10s
+      timeout: 5s
+    restart: "no"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.6'
+          memory: 100M
+
+  postgres:
+    image: postgres:alpine3.13
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRS_USER: postgres
+    networks:
+      logic_infra:
+        ipv4_address: 172.20.0.8
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 250M
+
+networks:
+  logic_infra:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
